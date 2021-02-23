@@ -27,6 +27,7 @@
   name,
   replaces = [],
   conflicts = [],
+  suggests = [],
   version,
   arch,
   cwd = ".",
@@ -80,21 +81,17 @@ parse_args(["-t", "rpm"|Args], #fpm{} = State) ->
 parse_args(["-t", Target|_Args], #fpm{} = _State) ->
   fpm_error("-t '~s' is not supported\n",[Target]);
 
-
-
 parse_args(["-s", "dir" | Args], State) ->
   parse_args(Args, State);
 
 parse_args(["-s", Source | _Args], _State) ->
   fpm_error("-s '~s' is not supported", [Source]);
 
-
 parse_args(["-p", Path|Args], #fpm{} = State) ->
   parse_args(Args, State#fpm{output = Path});
 
 parse_args(["--package", Path|Args], #fpm{} = State) ->
   parse_args(Args, State#fpm{output = Path});
-
 
 parse_args(["-f"|Args], #fpm{} = State) ->
   parse_args(Args, State#fpm{force = true});
@@ -108,13 +105,11 @@ parse_args(["-n", V|Args], #fpm{} = State) ->
 parse_args(["--name", V|Args], #fpm{} = State) ->
   parse_args(Args, State#fpm{name = V});
 
-
 parse_args(["--verbose"|Args], #fpm{} = State) ->
   parse_args(Args, State#fpm{loglevel = verbose});
 
 parse_args(["--debug"|Args], #fpm{} = State) ->
   parse_args(Args, State#fpm{loglevel = debug});
-
 
 parse_args(["-v", V|Args], #fpm{} = State) ->
   parse_args(Args, State#fpm{version = V});
@@ -125,10 +120,8 @@ parse_args(["--version", V|Args], #fpm{} = State) ->
 parse_args(["--iteration", I|Args], #fpm{} = State) ->
   parse_args(Args, State#fpm{release = I});
 
-
 parse_args(["--epoch", E|Args], #fpm{} = State) ->
   parse_args(Args, State#fpm{epoch = E});
-
 
 parse_args(["--license", L|Args], #fpm{} = State) ->
   parse_args(Args, State#fpm{license = L});
@@ -139,35 +132,32 @@ parse_args(["--vendor", L|Args], #fpm{} = State) ->
 parse_args(["--category", Desc|Args], #fpm{} = State) ->
   parse_args(Args, State#fpm{category = Desc});
 
-
 parse_args(["--depends", Dep|Args], #fpm{depends = Deps} = State) ->
   parse_args(Args, State#fpm{depends = Deps ++ [Dep]});
 
 parse_args(["-d", Dep|Args], #fpm{depends = Deps} = State) ->
   parse_args(Args, State#fpm{depends = Deps ++ [Dep]});
 
-
 parse_args(["--provides", P|Args], #fpm{provides = Provides} = State) ->
   parse_args(Args, State#fpm{provides = Provides ++ [P]});
-
 
 parse_args(["--conflicts", V|Args], #fpm{conflicts = R} = State) ->
   parse_args(Args, State#fpm{conflicts = R ++ [V]});
 
+parse_args(["--suggests", V|Args], #fpm{suggests = R} = State) ->
+  parse_args(Args, State#fpm{suggests = R ++ [V]});
+
 parse_args(["--replaces", V|Args], #fpm{replaces = R} = State) ->
   parse_args(Args, State#fpm{replaces = R ++ [V]});
 
-
 parse_args(["--config-files", V|Args], #fpm{config_files = Conf} = State) ->
   parse_args(Args, State#fpm{config_files = Conf ++ [V]});
-
 
 parse_args(["-a", V|Args], #fpm{} = State) ->
   parse_args(Args, State#fpm{arch = V});
 
 parse_args(["--architecture", V|Args], #fpm{} = State) ->
   parse_args(Args, State#fpm{arch = V});
-
 
 parse_args(["-m", Desc|Args], #fpm{} = State) ->
   parse_args(Args, State#fpm{maintainer = Desc});
@@ -178,10 +168,8 @@ parse_args(["--maintainer", Desc|Args], #fpm{} = State) ->
 parse_args(["--description", Desc|Args], #fpm{} = State) ->
   parse_args(Args, State#fpm{description = Desc});
 
-
 parse_args(["--url", URL|Args], #fpm{} = State) ->
   parse_args(Args, State#fpm{url = URL});
-
 
 parse_args(["--gpg", GPG|Args], #fpm{} = State) ->
   parse_args(Args, State#fpm{gpg = GPG});
@@ -302,7 +290,7 @@ debian_conf_files(#fpm{config_files = Conf}) ->
 
 debian_control_content(#fpm{name = Name, version = Version, maintainer = Maintainer, conflicts = Conflicts,
   arch = Arch, depends = Depends,
-  replaces = Replaces, category = Category, url = URL, description = Description, paths = Paths}) ->
+  replaces = Replaces, category = Category, url = URL, description = Description, suggests = Suggests, paths = Paths}) ->
   InstalledSize = lists:sum([
     fold_dir(Path, fun(FileName, AccIn) ->
       case filelib:is_regular(FileName) of
@@ -318,7 +306,8 @@ debian_control_content(#fpm{name = Name, version = Version, maintainer = Maintai
   debian_header("Maintainer", Maintainer),
   debian_header("Depends", join_list(Depends)),
   debian_header("Conflicts", join_list(Conflicts)),
-  debian_header("Replaces", join_list(Replaces)),
+  debian_header("Suggests", join_list(Suggests)),
+  debian_header("Replaces", join_list(Replaces)),    
   debian_header("Standards-Version", "3.9.1"),
   debian_header("Section",Category),
   debian_header("Priority", "extra"),
@@ -1091,6 +1080,7 @@ Options:
     -d, --depends DEPENDENCY      A dependency. This flag can be specified multiple times. Value is usually in the form of: -d 'name' or -d 'name > version'
     --provides PROVIDES           What this package provides (usually a name). This flag can be specified multiple times.
     --conflicts CONFLICTS         Other packages/versions this package conflicts with. This flag can specified multiple times.
+    --suggests SUGGESTS         Other packages/versions this package suggests with. This flag can specified multiple times.
     --replaces REPLACES           Other packages/versions this package replaces. This flag can be specified multiple times.
     --config-files CONFIG_FILES   Mark a file in the package as being a config file. This uses 'conffiles' in debs and %config in rpm. If you have multiple files to mark as configuration files, specify this flag multiple times.
     -a, --architecture ARCHITECTURE The architecture name. Usually matches 'uname -m'. For automatic values, you can use '-a all' or '-a native'. These two strings will be translated into the correct value for your platform and target package type.
